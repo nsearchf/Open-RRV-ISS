@@ -1,0 +1,14 @@
+[package]
+name = "rrv-iss"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+sim_lib = { path = "../sim_lib" }
+cpu_peripherals = { path = "../cpu_peripherals" }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["time"] }
+clap = { version = "4", features = ["derive"] }
+time = "0.3.36"
+

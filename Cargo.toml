@@ -1,0 +1,4 @@
+[workspace]
+resolver = "2"
+members = ["cpu_peripherals", "iss", "rv_core", "sim_lib", "tests"]
+# exclude = ["path/to/other"]

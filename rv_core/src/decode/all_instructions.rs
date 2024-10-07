@@ -1,0 +1,300 @@
+// Copyright (c) 2024, zhao.shaowei <nsearchf@yeah.net>
+//
+// This source code is licensed under the MIT license found in the
+// LICENSE file in the root directory of this source tree.
+
+use crate::decode::{
+    inst_rv32_i::*, inst_rv_i::*, inst_rv_system::*, inst_rv_zicsr::*, InstructionsEntry,
+};
+use crate::execute::{rv32_i, rv_i, rv_system, rv_zicsr};
+
+pub(crate) const ALL_INSTRUCTIONS: [InstructionsEntry; 48] = [
+    InstructionsEntry {
+        name: "ADD",
+        mask: MASK_ADD,
+        match_val: MATCH_ADD,
+        execute: rv_i::execute_add,
+    },
+    InstructionsEntry {
+        name: "ADDI",
+        mask: MASK_ADDI,
+        match_val: MATCH_ADDI,
+        execute: rv_i::execute_addi,
+    },
+    InstructionsEntry {
+        name: "AND",
+        mask: MASK_AND,
+        match_val: MATCH_AND,
+        execute: rv_i::execute_and,
+    },
+    InstructionsEntry {
+        name: "ANDI",
+        mask: MASK_ANDI,
+        match_val: MATCH_ANDI,
+        execute: rv_i::execute_andi,
+    },
+    InstructionsEntry {
+        name: "AUIPC",
+        mask: MASK_AUIPC,
+        match_val: MATCH_AUIPC,
+        execute: rv_i::execute_auipc,
+    },
+    InstructionsEntry {
+        name: "BEQ",
+        mask: MASK_BEQ,
+        match_val: MATCH_BEQ,
+        execute: rv_i::execute_beq,
+    },
+    InstructionsEntry {
+        name: "BGE",
+        mask: MASK_BGE,
+        match_val: MATCH_BGE,
+        execute: rv_i::execute_bge,
+    },
+    InstructionsEntry {
+        name: "BGEU",
+        mask: MASK_BGEU,
+        match_val: MATCH_BGEU,
+        execute: rv_i::execute_bgeu,
+    },
+    InstructionsEntry {
+        name: "BLT",
+        mask: MASK_BLT,
+        match_val: MATCH_BLT,
+        execute: rv_i::execute_blt,
+    },
+    InstructionsEntry {
+        name: "BLTU",
+        mask: MASK_BLTU,
+        match_val: MATCH_BLTU,
+        execute: rv_i::execute_bltu,
+    },
+    InstructionsEntry {
+        name: "BNE",
+        mask: MASK_BNE,
+        match_val: MATCH_BNE,
+        execute: rv_i::execute_bne,
+    },
+    InstructionsEntry {
+        name: "EBREAK",
+        mask: MASK_EBREAK,
+        match_val: MATCH_EBREAK,
+        execute: rv_i::execute_ebreak,
+    },
+    InstructionsEntry {
+        name: "ECALL",
+        mask: MASK_ECALL,
+        match_val: MATCH_ECALL,
+        execute: rv_i::execute_ecall,
+    },
+    InstructionsEntry {
+        name: "FENCE",
+        mask: MASK_FENCE,
+        match_val: MATCH_FENCE,
+        execute: rv_i::execute_fence,
+    },
+    InstructionsEntry {
+        name: "JAL",
+        mask: MASK_JAL,
+        match_val: MATCH_JAL,
+        execute: rv_i::execute_jal,
+    },
+    InstructionsEntry {
+        name: "JALR",
+        mask: MASK_JALR,
+        match_val: MATCH_JALR,
+        execute: rv_i::execute_jalr,
+    },
+    InstructionsEntry {
+        name: "LB",
+        mask: MASK_LB,
+        match_val: MATCH_LB,
+        execute: rv_i::execute_lb,
+    },
+    InstructionsEntry {
+        name: "LBU",
+        mask: MASK_LBU,
+        match_val: MATCH_LBU,
+        execute: rv_i::execute_lbu,
+    },
+    InstructionsEntry {
+        name: "LH",
+        mask: MASK_LH,
+        match_val: MATCH_LH,
+        execute: rv_i::execute_lh,
+    },
+    InstructionsEntry {
+        name: "LHU",
+        mask: MASK_LHU,
+        match_val: MATCH_LHU,
+        execute: rv_i::execute_lhu,
+    },
+    InstructionsEntry {
+        name: "LUI",
+        mask: MASK_LUI,
+        match_val: MATCH_LUI,
+        execute: rv_i::execute_lui,
+    },
+    InstructionsEntry {
+        name: "LW",
+        mask: MASK_LW,
+        match_val: MATCH_LW,
+        execute: rv_i::execute_lw,
+    },
+    InstructionsEntry {
+        name: "OR",
+        mask: MASK_OR,
+        match_val: MATCH_OR,
+        execute: rv_i::execute_or,
+    },
+    InstructionsEntry {
+        name: "ORI",
+        mask: MASK_ORI,
+        match_val: MATCH_ORI,
+        execute: rv_i::execute_ori,
+    },
+    InstructionsEntry {
+        name: "SB",
+        mask: MASK_SB,
+        match_val: MATCH_SB,
+        execute: rv_i::execute_sb,
+    },
+    InstructionsEntry {
+        name: "SH",
+        mask: MASK_SH,
+        match_val: MATCH_SH,
+        execute: rv_i::execute_sh,
+    },
+    InstructionsEntry {
+        name: "SLL",
+        mask: MASK_SLL,
+        match_val: MATCH_SLL,
+        execute: rv_i::execute_sll,
+    },
+    InstructionsEntry {
+        name: "SLT",
+        mask: MASK_SLT,
+        match_val: MATCH_SLT,
+        execute: rv_i::execute_slt,
+    },
+    InstructionsEntry {
+        name: "SLTI",
+        mask: MASK_SLTI,
+        match_val: MATCH_SLTI,
+        execute: rv_i::execute_slti,
+    },
+    InstructionsEntry {
+        name: "SLTIU",
+        mask: MASK_SLTIU,
+        match_val: MATCH_SLTIU,
+        execute: rv_i::execute_sltiu,
+    },
+    InstructionsEntry {
+        name: "SLTU",
+        mask: MASK_SLTU,
+        match_val: MATCH_SLTU,
+        execute: rv_i::execute_sltu,
+    },
+    InstructionsEntry {
+        name: "SRA",
+        mask: MASK_SRA,
+        match_val: MATCH_SRA,
+        execute: rv_i::execute_sra,
+    },
+    InstructionsEntry {
+        name: "SRL",
+        mask: MASK_SRL,
+        match_val: MATCH_SRL,
+        execute: rv_i::execute_srl,
+    },
+    InstructionsEntry {
+        name: "SUB",
+        mask: MASK_SUB,
+        match_val: MATCH_SUB,
+        execute: rv_i::execute_sub,
+    },
+    InstructionsEntry {
+        name: "SW",
+        mask: MASK_SW,
+        match_val: MATCH_SW,
+        execute: rv_i::execute_sw,
+    },
+    InstructionsEntry {
+        name: "XOR",
+        mask: MASK_XOR,
+        match_val: MATCH_XOR,
+        execute: rv_i::execute_xor,
+    },
+    InstructionsEntry {
+        name: "XORI",
+        mask: MASK_XORI,
+        match_val: MATCH_XORI,
+        execute: rv_i::execute_xori,
+    },
+    InstructionsEntry {
+        name: "MRET",
+        mask: MASK_MRET,
+        match_val: MATCH_MRET,
+        execute: rv_system::execute_mret,
+    },
+    InstructionsEntry {
+        name: "WFI",
+        mask: MASK_WFI,
+        match_val: MATCH_WFI,
+        execute: rv_system::execute_wfi,
+    },
+    InstructionsEntry {
+        name: "CSRRC",
+        mask: MASK_CSRRC,
+        match_val: MATCH_CSRRC,
+        execute: rv_zicsr::execute_csrrc,
+    },
+    InstructionsEntry {
+        name: "CSRRCI",
+        mask: MASK_CSRRCI,
+        match_val: MATCH_CSRRCI,
+        execute: rv_zicsr::execute_csrrci,
+    },
+    InstructionsEntry {
+        name: "CSRRS",
+        mask: MASK_CSRRS,
+        match_val: MATCH_CSRRS,
+        execute: rv_zicsr::execute_csrrs,
+    },
+    InstructionsEntry {
+        name: "CSRRSI",
+        mask: MASK_CSRRSI,
+        match_val: MATCH_CSRRSI,
+        execute: rv_zicsr::execute_csrrsi,
+    },
+    InstructionsEntry {
+        name: "CSRRW",
+        mask: MASK_CSRRW,
+        match_val: MATCH_CSRRW,
+        execute: rv_zicsr::execute_csrrw,
+    },
+    InstructionsEntry {
+        name: "CSRRWI",
+        mask: MASK_CSRRWI,
+        match_val: MATCH_CSRRWI,
+        execute: rv_zicsr::execute_csrrwi,
+    },
+    InstructionsEntry {
+        name: "SLLI",
+        mask: MASK_SLLI,
+        match_val: MATCH_SLLI,
+        execute: rv32_i::execute_slli,
+    },
+    InstructionsEntry {
+        name: "SRAI",
+        mask: MASK_SRAI,
+        match_val: MATCH_SRAI,
+        execute: rv32_i::execute_srai,
+    },
+    InstructionsEntry {
+        name: "SRLI",
+        mask: MASK_SRLI,
+        match_val: MATCH_SRLI,
+        execute: rv32_i::execute_srli,
+    },
+];

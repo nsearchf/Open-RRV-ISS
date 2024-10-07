@@ -1,0 +1,10 @@
+target/
+Cargo.lock
+
+.vscode/
+*.log
+
+tests/tests/data/**/*.asm
+tests/tests/data/**/*.bin
+tests/tests/data/**/*.elf
+tests/tests/data/**/*.o

@@ -1,0 +1,12 @@
+[package]
+name = "sim_lib"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+cpu_peripherals = { path = "../cpu_peripherals" }
+rv_core = { path = "../rv_core" }
+thiserror = "1"
+tracing = "0.1"
+goblin = "0.8"

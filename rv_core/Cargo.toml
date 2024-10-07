@@ -1,0 +1,10 @@
+[package]
+name = "rv_core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+cpu_peripherals = { path = "../cpu_peripherals" }
+thiserror = "1"
+tracing = "0.1"
