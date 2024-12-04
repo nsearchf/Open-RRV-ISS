@@ -8,6 +8,7 @@ license = "MIT"
 cpu_peripherals = { path = "../cpu_peripherals" }
 sim_lib = { path = "../sim_lib" }
 rv_core = { path = "../rv_core" }
+goblin = "0.9.2"
 
 [dev-dependencies]
 tracing = "0.1"
