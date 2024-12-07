@@ -41,10 +41,10 @@ pub enum SimulatorError {
     Io(#[from] std::io::Error),
 
     #[error(transparent)]
-    RvCore(#[from] CpuPeripheralsError),
-
+    Bus(#[from] CpuPeripheralsError),
+    
     #[error(transparent)]
-    Bus(#[from] RvCoreError),
+    RvCore(#[from] RvCoreError),
 
     #[error(transparent)]
     LoaderError(#[from] GoblinError),

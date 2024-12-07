@@ -173,7 +173,16 @@ fn main() {
 
     // step 5. run the simulator
     let start = std::time::Instant::now();
-    sim.run(None).expect("Simulation failed");
+    // None means run until exit, no steps limited
+    let r = sim.run(None);
+    match r {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("Simulation failed: {}", e);
+            std::process::exit(1);
+        }
+    }
+    
     let duration = start.elapsed();
     println!("Target application exit code: {}", sim.get_exit_code());
     

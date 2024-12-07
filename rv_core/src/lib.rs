@@ -15,9 +15,33 @@ pub mod trap;
 pub mod inst_cause;
 pub mod inst_csr_reg;
 
+#[cfg(not(any(
+    feature = "riscv_xlen_32",
+    feature = "riscv_xlen_64",
+    feature = "riscv_xlen_128"
+)))]
+compile_error!("Please define riscv_xlen");
+
+#[cfg(all(feature = "riscv_xlen_32", feature = "riscv_xlen_64"))]
+compile_error!("Cannot define multiple riscv_xlen");
+
+#[cfg(all(feature = "riscv_xlen_32", feature = "riscv_xlen_128"))]
+compile_error!("Cannot define multiple riscv_xlen");
+
+#[cfg(all(feature = "riscv_xlen_64", feature = "riscv_xlen_128"))]
+compile_error!("Cannot define multiple riscv_xlen");
+
+
+#[cfg(feature = "riscv_xlen_32")]
 pub type ProgramCounter = u32;
+
+#[cfg(feature = "riscv_xlen_32")]
 pub type MachineInstruction = u32;
+
+#[cfg(feature = "riscv_xlen_32")]
 pub type GprUnsigned = u32;
+
+#[cfg(feature = "riscv_xlen_32")]
 pub type GprSigned = i32;
 
 pub type RegisterIndex = usize;

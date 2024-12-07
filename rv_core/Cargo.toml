@@ -8,3 +8,9 @@ license = "MIT"
 cpu_peripherals = { path = "../cpu_peripherals" }
 thiserror = "1"
 tracing = "0.1"
+
+[features]
+default = ["riscv_xlen_32"]
+riscv_xlen_32 = []
+riscv_xlen_64 = []
+riscv_xlen_128 = []

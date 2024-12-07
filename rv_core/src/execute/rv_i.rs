@@ -85,7 +85,7 @@ pub(crate) fn execute_auipc(
 ) -> Result<Option<ExecutionReturnData>, RvCoreError> {
     let operands = decode::parse_u_type(raw);
     trace!("Executing AUIPC with operands: {:?}", operands);
-    let rd_val = core.get_pc() + operands.imm as ProgramCounter;
+    let rd_val = core.get_pc().wrapping_add(operands.imm as ProgramCounter);
     core.write_register(operands.rd, rd_val as GprUnsigned)?;
 
     if disasm {
@@ -197,10 +197,21 @@ pub(crate) fn execute_fence(
     _raw: MachineInstruction,
     _core: &mut Core,
     _bus: &mut Bus,
-    _disasm: bool,
+    disasm: bool,
 ) -> Result<Option<ExecutionReturnData>, RvCoreError> {
-    todo!("Not implemented")
+    // NOTE: If the simulator has a specific memory model or cache consistency protocol, 
+    //       it may need to be implemented here.
+
+    if disasm {
+        Ok(Some(ExecutionReturnData {
+            pc: None,
+            disasm: Some("FENCE".to_string()),
+        }))
+    } else {
+        Ok(None)
+    }
 }
+
 pub(crate) fn execute_jal(
     raw: MachineInstruction,
     core: &mut Core,
@@ -262,7 +273,7 @@ pub(crate) fn execute_lb(
 ) -> Result<Option<ExecutionReturnData>, RvCoreError> {
     execute_load_i_type(
         |addr| bus.read_byte(addr),
-        |val| (val as GprSigned) as GprUnsigned,
+        |val| (val as i8 as GprSigned) as GprUnsigned,
         "LB",
         raw,
         core,
@@ -293,7 +304,7 @@ pub(crate) fn execute_lh(
 ) -> Result<Option<ExecutionReturnData>, RvCoreError> {
     execute_load_i_type(
         |addr| bus.read_halfword(addr),
-        |val| (val as GprSigned) as GprUnsigned,
+        |val| (val as i16 as GprSigned) as GprUnsigned,
         "LH",
         raw,
         core,
@@ -439,7 +450,10 @@ pub(crate) fn execute_sll(
         raw,
         core,
         disasm,
-        |rs1, rs2| (rs1 << rs2) as GprUnsigned,
+        #[cfg(feature = "riscv_xlen_32")]
+        |rs1, rs2| (rs1 << ((rs2 as GprUnsigned) & 0x1f)) as GprUnsigned,
+        #[cfg(feature = "riscv_xlen_64")]
+        |rs1, rs2| (rs1 << ((rs2 as GprUnsigned) & 0x2f)) as GprUnsigned,
         "SLL",
     )
 }
@@ -514,7 +528,10 @@ pub(crate) fn execute_sra(
         raw,
         core,
         disasm,
-        |rs1, rs2| ((rs1 as GprSigned) >> rs2) as GprUnsigned,
+        #[cfg(feature = "riscv_xlen_32")]
+        |rs1, rs2| ((rs1 as GprSigned) >> (rs2 as GprUnsigned & 0x1f)) as GprUnsigned,
+        #[cfg(feature = "riscv_xlen_64")]
+        |rs1, rs2| ((rs1 as GprSigned) >> (rs2 as GprUnsigned & 0x2f)) as GprUnsigned,
         "SRA",
     )
 }
@@ -529,7 +546,10 @@ pub(crate) fn execute_srl(
         raw,
         core,
         disasm,
-        |rs1, rs2| ((rs1 as GprUnsigned) >> rs2) as GprUnsigned,
+        #[cfg(feature = "riscv_xlen_32")]
+        |rs1, rs2| ((rs1 as GprUnsigned) >> (rs2 as GprUnsigned & 0x1f)) as GprUnsigned,
+        #[cfg(feature = "riscv_xlen_64")]
+        |rs1, rs2| ((rs1 as GprUnsigned) >> (rs2 as GprUnsigned & 0x2f)) as GprUnsigned,
         "SRL",
     )
 }
@@ -544,7 +564,7 @@ pub(crate) fn execute_sub(
         raw,
         core,
         disasm,
-        |rs1, rs2| (rs1 - rs2) as GprUnsigned,
+        |rs1, rs2| (rs1.wrapping_sub(rs2)) as GprUnsigned,
         "SUB",
     )
 }

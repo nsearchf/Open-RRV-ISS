@@ -9,4 +9,4 @@ cpu_peripherals = { path = "../cpu_peripherals" }
 rv_core = { path = "../rv_core" }
 thiserror = "1"
 tracing = "0.1"
-goblin = "0.8"
+goblin = "0.9"

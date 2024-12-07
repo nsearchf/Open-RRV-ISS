@@ -22,8 +22,8 @@ pub const MSTATUS_MPRV: GprUnsigned = 0x00020000;
 // Error type for CSR operations
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum CsrError {
-    #[error("Invalid CSR address")]
-    InvalidAddress,
+    #[error("Invalid CSR address: {0:#x}")]
+    InvalidAddress(CsrAddrType),
 }
 
 /// Represents a single CSR register
@@ -36,7 +36,6 @@ struct CsrRegister {
 impl CsrRegister {
     /// Creates a new CsrRegister with the specified writable bits and initial value
     fn new(writable_bits: u32, initial_value: u32) -> Self {
-        info!("Creating new CSR");
         Self {
             value: initial_value,
             writable_bits,
@@ -81,6 +80,19 @@ impl Csr {
         registers.insert(CSR_MTVAL, CsrRegister::new(0xFFFFFFFF, 0x00000000));
         registers.insert(CSR_MIP, CsrRegister::new(0xFFFFFFFF, 0x00000000));
 
+        registers.insert(CSR_MHARTID, CsrRegister::new(0x0, 0x0000_0000));
+        // Resumable NMI status.
+        registers.insert(CSR_MNSTATUS, CsrRegister::new(0x0000_1a88, 0x0000_0000));
+        registers.insert(CSR_SATP, CsrRegister::new(0xFFFF_FFFF, 0x0000_0000));
+        registers.insert(CSR_PMPADDR0, CsrRegister::new(0xFFFF_FFFF, 0x0000_0000));
+        // CSR_PMPCFG0, CSR_MIDELEG, CSR_STVEC, CSR_MEDELEG
+        registers.insert(CSR_PMPCFG0, CsrRegister::new(0xFFFF_FFFF, 0x0000_0000));
+        registers.insert(CSR_MIDELEG, CsrRegister::new(0xFFFF_FFFF, 0x0000_0000));
+        registers.insert(CSR_STVEC, CsrRegister::new(0xFFFF_FFFF, 0x0000_0000));
+        registers.insert(CSR_MEDELEG, CsrRegister::new(0xFFFF_FFFF, 0x0000_0000));
+
+        info!("Initialized {} CSRs", registers.len());
+
         Csr { registers }
     }
 
@@ -89,7 +101,7 @@ impl Csr {
         if let Some(register) = self.registers.get(&address) {
             Ok(register.read())
         } else {
-            Err(CsrError::InvalidAddress)
+            Err(CsrError::InvalidAddress(address))
         }
     }
 
@@ -99,7 +111,7 @@ impl Csr {
             register.write(value);
             Ok(())
         } else {
-            Err(CsrError::InvalidAddress)
+            Err(CsrError::InvalidAddress(address))
         }
     }
 
@@ -159,5 +171,13 @@ mod tests {
         assert_eq!(csr.read(CSR_MSTATUS).unwrap(), 10 | 5);
         assert_eq!(csr.csrrc(CSR_MSTATUS, 3).unwrap(), (10 | 5));
         assert_eq!(csr.read(CSR_MSTATUS).unwrap(), (10 | 5) & (!3));
+    }
+
+    #[test]
+    fn test_csr_addresse_invalid() {
+        let mut csr = Csr::new();
+        let r = csr.write(0x1000, 42);
+        assert!(r.is_err());
+        assert_eq!(r.unwrap_err().to_string(), "Invalid CSR address: 0x1000")
     }
 }

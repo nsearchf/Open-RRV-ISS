@@ -10,8 +10,18 @@ A functionally accurate RISC-V instruction set simulator developed in Rust.
 
 ## 运行测试
 
-- `run_md5_test.sh` 在模拟器上运行计算 md5 校验和的程序.
-- `run_test.sh` 做完准备工作后,执行 `cargo test`.
+在项目根目录下执行 make 可以执行测试程序。
+
+- `make run-cargo-test` 做完准备工作后,执行 `cargo test`.
+- `make use-riscv-tests` 在模拟器上运行 [riscv-tests](https://github.com/riscv-software-src/riscv-tests) 的 `rv32ui-p-*` 的程序.
+- `make use-md5-test` 在模拟器上运行计算 md5 校验和的程序.
+- `make` or `make all-tests` 执行所有测试.
+
+## 当前状态
+
+- riscv tests 中 `rv32ui-p-*` 的程序运行结果都 pass。
+- md5 测试程序成功运行。
+
 
 ## RRV-ISS 文档
 
