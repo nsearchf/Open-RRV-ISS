@@ -123,7 +123,7 @@ impl Simulator {
     pub fn get_run_instrctions(&self) -> u64 {
         self.run_instrctions
     }
-    
+
     fn step(&mut self) -> Result<(), SimulatorError> {
         let pc = self.core.get_pc();
         trace!("PC: {:#010x}", pc);
@@ -155,7 +155,7 @@ impl Simulator {
                 }
             }
 
-            self.core.handle_trap(&trap, new_pc)?
+            self.core.handle_trap(&trap, new_pc, &mut self.log_file)?
         } else {
             ret_data
         };
@@ -191,7 +191,7 @@ impl Simulator {
                                 "{:#010x} ({:#010x}) {}\n",
                                 self.core.get_pc(),
                                 instruction,
-                                disasm
+                                disasm.to_lowercase()
                             ))
                             .unwrap_or_else(|e| {
                                 error!("Failed to write log: {}", e);

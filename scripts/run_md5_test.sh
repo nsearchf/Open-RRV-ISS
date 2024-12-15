@@ -27,10 +27,10 @@ exit_code=$(echo "$output" | grep "Target application exit code:" | awk -F': ' '
 
 if [ "$exit_code" -ne 0 ]; then
     echo "Target application exit code is not 0, it is $exit_code"
-    echo "Test FAILED"
+    echo -e "\033[31mTest FAILED\033[0m"
     echo -e "========= Running $0 Done =========\n"
     exit 1
 fi
 
-echo "Test PASSED"
+echo -e "\033[32mTest PASSED\033[0m"
 echo -e "========= Running $0 Done =========\n"

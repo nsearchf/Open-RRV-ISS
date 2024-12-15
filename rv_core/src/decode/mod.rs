@@ -8,6 +8,7 @@ pub(crate) mod disassemble;
 
 mod all_instructions;
 mod inst_rv32_i;
+mod inst_rv_c;
 mod inst_rv_i;
 mod inst_rv_system;
 mod inst_rv_zicsr;

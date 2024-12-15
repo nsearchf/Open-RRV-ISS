@@ -42,7 +42,7 @@ pub enum SimulatorError {
 
     #[error(transparent)]
     Bus(#[from] CpuPeripheralsError),
-    
+
     #[error(transparent)]
     RvCore(#[from] RvCoreError),
 

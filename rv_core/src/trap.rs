@@ -111,7 +111,7 @@ impl Trap {
             }
             Trap::Interrupt(interrupt) => {
                 csr.write(CSR_MEPC, new_pc as u32)?;
-                self.set_mcause_for_insterrupt(csr, interrupt)?;
+                self.set_mcause_for_interrupt(csr, interrupt)?;
 
                 // TODO
                 // csr.write(CSR_MSTATUS, mstatus)?;
@@ -167,7 +167,7 @@ impl Trap {
         Ok(())
     }
 
-    fn set_mcause_for_insterrupt(
+    fn set_mcause_for_interrupt(
         &self,
         csr: &mut Csr,
         interrupt: &Interrupt,

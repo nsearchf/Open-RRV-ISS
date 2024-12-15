@@ -71,8 +71,12 @@ pub trait Device {
     fn write_word(&mut self, address: DeviceAddress, value: u32)
         -> Result<(), CpuPeripheralsError>;
 
-    fn read(&self, address: DeviceAddress, size: usize) -> Result<Vec<u8>, CpuPeripheralsError>;
-    fn write(&mut self, address: DeviceAddress, data: &[u8]) -> Result<(), CpuPeripheralsError>;
+    fn read(&self, address: DeviceAddress, _size: usize) -> Result<Vec<u8>, CpuPeripheralsError> {
+        Err(CpuPeripheralsError::DeviceReadFailed(address as u64))
+    }
+    fn write(&mut self, address: DeviceAddress, _data: &[u8]) -> Result<(), CpuPeripheralsError> {
+        Err(CpuPeripheralsError::DeviceWriteFailed(address as u64))
+    }
 }
 
 #[cfg(test)]

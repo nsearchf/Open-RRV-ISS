@@ -6,6 +6,7 @@
 // iss/src/main.rs
 
 use std::fs::File;
+use std::io::Write;
 use std::io::{self, Read};
 use std::path::PathBuf;
 
@@ -17,7 +18,7 @@ use tracing_subscriber::FmtSubscriber;
 
 use cpu_peripherals::bus::{Bus, DevicePointer};
 use cpu_peripherals::{clint::Clint, mem::Mem, uart::Uart, DeviceAddress, DeviceSize};
-use sim_lib::loader::Loader;
+use sim_lib::loader::{self, Loader};
 use sim_lib::simulator::Simulator;
 use sim_lib::ProgramCounter;
 
@@ -65,6 +66,14 @@ struct Args {
     /// If log file of RVV-ISS running with no ansi color
     #[arg(short = 'n', long = "no-ansi", action = ArgAction::SetTrue)]
     no_ansi: bool,
+
+    /// The absolute path to the signature file.
+    #[arg(long)]
+    rv_arch_test_signature: Option<String>,
+
+    /// Size of each line in signature.
+    #[arg(long, default_value_t = 16)]
+    rv_arch_test_signature_granularity: u32,
 }
 
 fn parse_hex_address(s: &str) -> Result<DeviceAddress, std::num::ParseIntError> {
@@ -73,7 +82,7 @@ fn parse_hex_address(s: &str) -> Result<DeviceAddress, std::num::ParseIntError> 
 
 // const MEMORY_BASE_ADDRESS: DeviceAddress = 0x1_0000;
 const FLASH_BASE_ADDRESS: DeviceAddress = 0x8000_0000;
-const FLASH_SIZE: DeviceSize = 512 * 1024;
+const FLASH_SIZE: DeviceSize = 2 * 1024 * 1024;
 
 const RAM_BASE_ADDRESS: DeviceAddress = 0x8008_0000;
 const RAM_SIZE: DeviceSize = 512 * 1024;
@@ -138,38 +147,7 @@ fn main() {
     }
 
     // step 4. load the ELF/bin program into memory
-    let file_path = PathBuf::from(&args.file_path);
-    info!("ELF/bin file path: {:?}", file_path);
-
-    if let Ok(is_elf) = is_elf_file(&args.file_path) {
-        if is_elf {
-            let loader = Loader::load_elf_file(file_path.as_path(), sim.get_bus_mut())
-                .unwrap()
-                .unwrap();
-
-            assert_eq!(loader.entry_point(), 0x8000_0000, "Unexpected entry point");
-            let entry_point = loader.entry_point();
-            sim.set_reset_vector(entry_point as ProgramCounter);
-        } else {
-            match args.entry_point {
-                Some(entry_point) => {
-                    let mut file = File::open(&args.file_path).expect("Failed to open binary file");
-                    let mut buffer = Vec::new();
-                    file.read_to_end(&mut buffer)
-                        .expect("Failed to read binary file");
-                    let _ = sim.load_bin_program(&buffer, FLASH_BASE_ADDRESS);
-                    sim.set_reset_vector(entry_point as ProgramCounter);
-                }
-                None => {
-                    eprintln!("Error: For non-ELF files, the entry point must be specified.");
-                    std::process::exit(1);
-                }
-            }
-        }
-    } else {
-        eprintln!("Error: Open or read file({}) failed.", &args.file_path);
-        std::process::exit(1);
-    }
+    let meta_data = load_elf_to_memory(&args.file_path, args.entry_point, &mut sim);
 
     // step 5. run the simulator
     let start = std::time::Instant::now();
@@ -182,18 +160,108 @@ fn main() {
             std::process::exit(1);
         }
     }
-    
     let duration = start.elapsed();
     println!("Target application exit code: {}", sim.get_exit_code());
-    
+
+    // step 6. print the statistics
     let secs = duration.as_secs_f64();
     let instructions = sim.get_run_instrctions();
     // println!("Time elapsed: {:?}, secs {}, instructions {}", duration, secs, instructions);
 
-    // step 6. print the statistics
     println!("Simulation statistics:");
     let ips = instructions as f64 / secs;
-    println!("\tIPS(Instructions Per Second): {:.2} KIPS, {:.2} MIPS", 
-        ips/(1000 as f64), ips/((1000*1000) as f64));
+    println!(
+        "\tIPS(Instructions Per Second): {:.2} KIPS, {:.2} MIPS",
+        ips / (1000 as f64),
+        ips / ((1000 * 1000) as f64)
+    );
     println!("Rust RISC-V ISS has finished running.");
+
+    // step 7. dump signature
+    if let Some(file_path) = args.rv_arch_test_signature {
+        dump_signature_file(
+            args.rv_arch_test_signature_granularity as usize,
+            meta_data,
+            &sim,
+            &file_path,
+        );
+    }
+}
+
+fn load_elf_to_memory(
+    file_path_str: &str,
+    entry_point: Option<usize>,
+    sim: &mut Simulator,
+) -> Option<loader::SignatureMetaData> {
+    let file_path = PathBuf::from(file_path_str);
+    info!("ELF/bin file path: {:?}", file_path);
+
+    if let Ok(is_elf) = is_elf_file(file_path_str) {
+        if is_elf {
+            let loader = Loader::load_elf_file(file_path.as_path(), sim.get_bus_mut())
+                .unwrap()
+                .unwrap();
+
+            assert_eq!(loader.entry_point(), 0x8000_0000, "Unexpected entry point");
+            let entry_point = loader.entry_point();
+            sim.set_reset_vector(entry_point as ProgramCounter);
+
+            loader.signature_meta_data
+        } else {
+            match entry_point {
+                Some(entry_point) => {
+                    let mut file = File::open(file_path_str).expect("Failed to open binary file");
+                    let mut buffer = Vec::new();
+                    file.read_to_end(&mut buffer)
+                        .expect("Failed to read binary file");
+                    let _ = sim.load_bin_program(&buffer, FLASH_BASE_ADDRESS);
+                    sim.set_reset_vector(entry_point as ProgramCounter);
+                    None
+                }
+                None => {
+                    eprintln!("Error: For non-ELF files, the entry point must be specified.");
+                    std::process::exit(1);
+                }
+            }
+        }
+    } else {
+        eprintln!("Error: Open or read file({}) failed.", file_path_str);
+        std::process::exit(1);
+    }
+}
+
+fn dump_signature_file(
+    signature_granularity: usize,
+    meta_data: Option<loader::SignatureMetaData>,
+    sim: &Simulator,
+    file_path: &str,
+) {
+    if let Some(meta_data) = meta_data {
+        if meta_data.signature_len == 0 {
+            return;
+        }
+        
+        let size_of_each_line: usize = signature_granularity;
+        let bus = sim.get_bus();
+        let signature_data = bus
+            .read(meta_data.signature_addr, meta_data.signature_len)
+            .expect("Failed to read signature data from target memory.");
+
+        // Open the file in write mode
+        let file = PathBuf::from(&file_path);
+        let mut file = File::create(&file).expect("Failed to create signature file");
+
+        // Write the signature data to the file in reverse order
+        for chunk in signature_data.chunks(size_of_each_line) {
+            let hex_string = chunk
+                .iter()
+                .rev()
+                .map(|byte| format!("{:02x}", byte))
+                .collect::<Vec<String>>()
+                .join("");
+            writeln!(file, "{}", hex_string).expect("Failed to write to file");
+        }
+
+        info!("Signature data written to file: {:?}", file_path);
+    }
 }

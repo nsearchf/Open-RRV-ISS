@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use tracing::trace;
+use tracing::{trace, warn};
 
 use crate::trap::{Exception, Trap};
 use crate::GprSigned;
@@ -152,7 +152,7 @@ pub(crate) fn execute_bne(
     execute_branch_instruction("BNE", raw, core, disasm, |a, b| a != b)
 }
 pub(crate) fn execute_ebreak(
-    raw: MachineInstruction,
+    _raw: MachineInstruction,
     core: &mut Core,
     _bus: &mut Bus,
     disasm: bool,
@@ -160,7 +160,7 @@ pub(crate) fn execute_ebreak(
     trace!("Executing EBREAK");
 
     // trigger trap
-    core.set_trap(Trap::Exception(Exception::Breakpoint), raw)?;
+    core.set_trap(Trap::Exception(Exception::Breakpoint), core.get_pc())?;
 
     if disasm {
         Ok(Some(ExecutionReturnData {
@@ -199,7 +199,7 @@ pub(crate) fn execute_fence(
     _bus: &mut Bus,
     disasm: bool,
 ) -> Result<Option<ExecutionReturnData>, RvCoreError> {
-    // NOTE: If the simulator has a specific memory model or cache consistency protocol, 
+    // NOTE: If the simulator has a specific memory model or cache consistency protocol,
     //       it may need to be implemented here.
 
     if disasm {
@@ -223,7 +223,16 @@ pub(crate) fn execute_jal(
     let pc = core.get_pc();
     let next_pc = pc.wrapping_add(4);
     let new_pc = pc.wrapping_add(operands.imm as GprUnsigned as ProgramCounter);
-    core.write_register(operands.rd, next_pc as GprUnsigned)?;
+
+    if (new_pc & 0x1) != 0 {
+        core.set_trap(
+            Trap::Exception(Exception::InstructionAddressMisaligned),
+            raw,
+        )?;
+        warn!("JALR target address is not aligned, new pc: {:#x}", new_pc);
+    } else {
+        core.write_register(operands.rd, next_pc as GprUnsigned)?;
+    }
 
     if disasm {
         Ok(Some(ExecutionReturnData {
@@ -249,7 +258,7 @@ pub(crate) fn execute_jalr(
     let next_pc = core.get_pc().wrapping_add(4);
 
     let rs1 = core.read_register(operands.rs1).unwrap();
-    let new_pc = rs1.wrapping_add(operands.imm as GprUnsigned);
+    let new_pc = rs1.wrapping_add(operands.imm as GprUnsigned) & !0x1;
     core.write_register(operands.rd, next_pc as GprUnsigned)?;
 
     if disasm {
@@ -278,6 +287,7 @@ pub(crate) fn execute_lb(
         raw,
         core,
         disasm,
+        0,
     )
 }
 
@@ -294,6 +304,7 @@ pub(crate) fn execute_lbu(
         raw,
         core,
         disasm,
+        0,
     )
 }
 pub(crate) fn execute_lh(
@@ -309,6 +320,7 @@ pub(crate) fn execute_lh(
         raw,
         core,
         disasm,
+        0x1,
     )
 }
 
@@ -325,6 +337,7 @@ pub(crate) fn execute_lhu(
         raw,
         core,
         disasm,
+        0x1,
     )
 }
 pub(crate) fn execute_lui(
@@ -359,6 +372,7 @@ pub(crate) fn execute_lw(
         raw,
         core,
         disasm,
+        0x3,
     )
 }
 
@@ -425,10 +439,15 @@ pub(crate) fn execute_sh(
     trace!("Executing SH with operands: {:?}", operands);
     let rs1 = core.read_register(operands.rs1).unwrap();
     let mem_addr = rs1.wrapping_add(operands.imm as GprUnsigned);
-
-    let rs2 = core.read_register(operands.rs2).unwrap();
-
-    bus.write_halfword(mem_addr as DeviceAddress, rs2 as u16)?;
+    if (mem_addr & 0x1) != 0 {
+        core.set_trap(
+            Trap::Exception(Exception::StoreAmoAddressMisaligned),
+            mem_addr,
+        )?;
+    } else {
+        let rs2 = core.read_register(operands.rs2).unwrap();
+        bus.write_halfword(mem_addr as DeviceAddress, rs2 as u16)?;
+    }
 
     if disasm {
         Ok(Some(ExecutionReturnData {
@@ -579,10 +598,15 @@ pub(crate) fn execute_sw(
     let rs1 = core.read_register(operands.rs1).unwrap();
     let mem_addr = rs1.wrapping_add(operands.imm as GprUnsigned);
     trace!(">>>>rs1, mem_addr: {:#x}, {:#x}", rs1, mem_addr);
-
-    let rs2 = core.read_register(operands.rs2).unwrap();
-
-    bus.write_word(mem_addr as DeviceAddress, rs2 as u32)?;
+    if (mem_addr & 0x3) != 0 {
+        core.set_trap(
+            Trap::Exception(Exception::StoreAmoAddressMisaligned),
+            mem_addr,
+        )?;
+    } else {
+        let rs2 = core.read_register(operands.rs2).unwrap();
+        bus.write_word(mem_addr as DeviceAddress, rs2 as u32)?;
+    }
 
     if disasm {
         Ok(Some(ExecutionReturnData {
@@ -722,6 +746,7 @@ fn execute_load_i_type<T>(
     raw: MachineInstruction,
     core: &mut Core,
     disasm: bool,
+    misalign_mask: GprUnsigned,
 ) -> Result<Option<ExecutionReturnData>, RvCoreError>
 where
     T: BusAccessWidth,
@@ -731,8 +756,12 @@ where
     let rs1 = core.read_register(operands.rs1).unwrap();
     let mem_addr = rs1.wrapping_add(operands.imm as GprUnsigned);
 
-    let val = load_fn(mem_addr as DeviceAddress)?;
-    let _ = core.write_register(operands.rd, convert_fn(val)).unwrap();
+    if (mem_addr & misalign_mask) != 0 {
+        core.set_trap(Trap::Exception(Exception::LoadAddressMisaligned), mem_addr)?;
+    } else {
+        let val = load_fn(mem_addr as DeviceAddress)?;
+        let _ = core.write_register(operands.rd, convert_fn(val)).unwrap();
+    }
 
     if disasm {
         Ok(Some(ExecutionReturnData {

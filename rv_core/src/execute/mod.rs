@@ -4,6 +4,7 @@
 // LICENSE file in the root directory of this source tree.
 
 pub(crate) mod rv32_i;
+pub(crate) mod rv_c;
 pub(crate) mod rv_i;
 pub(crate) mod rv_system;
 pub(crate) mod rv_zicsr;

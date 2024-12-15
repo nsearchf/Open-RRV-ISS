@@ -4,11 +4,12 @@
 // LICENSE file in the root directory of this source tree.
 
 use crate::decode::{
-    inst_rv32_i::*, inst_rv_i::*, inst_rv_system::*, inst_rv_zicsr::*, InstructionsEntry,
+    inst_rv32_i::*, inst_rv_c::*, inst_rv_i::*, inst_rv_system::*, inst_rv_zicsr::*,
+    InstructionsEntry,
 };
-use crate::execute::{rv32_i, rv_i, rv_system, rv_zicsr};
+use crate::execute::{rv32_i, rv_c, rv_i, rv_system, rv_zicsr};
 
-pub(crate) const ALL_INSTRUCTIONS: [InstructionsEntry; 48] = [
+pub(crate) const ALL_INSTRUCTIONS: [InstructionsEntry; 49] = [
     InstructionsEntry {
         name: "ADD",
         mask: MASK_ADD,
@@ -296,5 +297,12 @@ pub(crate) const ALL_INSTRUCTIONS: [InstructionsEntry; 48] = [
         mask: MASK_SRLI,
         match_val: MATCH_SRLI,
         execute: rv32_i::execute_srli,
+    },
+    // C extension
+    InstructionsEntry {
+        name: "C.NOP",
+        mask: MASK_C_NOP,
+        match_val: MATCH_C_NOP,
+        execute: rv_c::execute_c_nop,
     },
 ];

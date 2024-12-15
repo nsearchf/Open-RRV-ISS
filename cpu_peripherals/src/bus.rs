@@ -110,6 +110,26 @@ impl Bus {
         device.write_word(address, value)?;
         Ok(())
     }
+
+    pub fn read(
+        &self,
+        address: DeviceAddress,
+        size: usize,
+    ) -> Result<Vec<u8>, CpuPeripheralsError> {
+        let device = self.find_device(address)?;
+        let val = device.read(address, size)?;
+        Ok(val)
+    }
+
+    pub fn write(
+        &mut self,
+        address: DeviceAddress,
+        data: &[u8],
+    ) -> Result<(), CpuPeripheralsError> {
+        let device = self.find_device_mut(address)?;
+        device.write(address, data)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

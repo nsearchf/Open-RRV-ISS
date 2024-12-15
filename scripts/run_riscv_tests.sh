@@ -24,18 +24,22 @@ for file in "$folder_path"/rv32ui-p-*; do
         if [[ $filename == rv32ui-p-fence_i ]]; then
             continue
         fi
+        if [[ $filename == rv32ui-p-ma_data ]]; then
+            continue
+        fi
 
         file_count=$((file_count + 1))
 
         # ./target/debug/rrv-iss -l debug -f "$file" -i tmp.instr
+        # echo -e "\n========= Running $filename ========="
         output=$(./target/debug/rrv-iss -f "$file")
         exit_code=$(echo "$output" | grep "Target application exit code:" | awk -F': ' '{print $2}')
 
-        echo "$output"
+        # echo "$output"
         if [ "$exit_code" -ne 0 ]; then
             echo -e "\nTarget application exit code is not 0, it is $exit_code"
             echo "Total number of processed files: $file_count"
-            echo -e "Test FAILED"
+            echo -e "\033[31mTest FAILED\033[0m"
             echo -e "========= Running $0 Done =========\n"
             exit 1
         fi
@@ -43,5 +47,5 @@ for file in "$folder_path"/rv32ui-p-*; do
 done
 
 echo -e "\nTotal number of processed files: $file_count"
-echo -e "Test PASSED"
+echo -e "\033[32mTest PASSED\033[0m"
 echo -e "========= Running  $0 Done =========\n"

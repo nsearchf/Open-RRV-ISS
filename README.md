@@ -15,13 +15,19 @@ A functionally accurate RISC-V instruction set simulator developed in Rust.
 - `make run-cargo-test` 做完准备工作后,执行 `cargo test`.
 - `make use-riscv-tests` 在模拟器上运行 [riscv-tests](https://github.com/riscv-software-src/riscv-tests) 的 `rv32ui-p-*` 的程序.
 - `make use-md5-test` 在模拟器上运行计算 md5 校验和的程序.
+- `make use-riscv-arch-tests` 在模拟器上运行 [riscv-arch-test](https://github.com/riscv-non-isa/riscv-arch-test) 中的测试程序.
 - `make` or `make all-tests` 执行所有测试.
 
 ## 当前状态
 
+- cargo test 中的所有测试都 pass。
 - riscv tests 中 `rv32ui-p-*` 的程序运行结果都 pass。
 - md5 测试程序成功运行。
+- riscv arch test 中的所有测试都 pass（ISA: RV32IZicsr）。
 
+## 已知问题
+
+- `riscv-tests` 中的 `rv32ui-p-fence_i` 和 `rv32ui-p-ma_data` 使用了 tohost，目前还不清楚 tohost 的具体细节，暂时跳过这两个 case。
 
 ## RRV-ISS 文档
 

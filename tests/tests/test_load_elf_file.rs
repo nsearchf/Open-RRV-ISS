@@ -5,20 +5,20 @@
 
 // tests/tests/test_load_elf_file.rs
 
-use std::io::Read;
 use std::fs::File;
-use std::path::{PathBuf, Path};
+use std::io::Read;
+use std::path::{Path, PathBuf};
 
-use goblin::elf::{Elf, header};
+use goblin::elf::{header, Elf};
 
 use sim_lib::loader::Loader;
 mod common;
 
-
 fn get_elf_info<P: AsRef<Path>>(path: P) -> Result<(usize, usize, usize, usize), &'static str> {
     let mut file = File::open(path).map_err(|_| "Failed to open file")?;
     let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).map_err(|_| "Failed to read file")?;
+    file.read_to_end(&mut buffer)
+        .map_err(|_| "Failed to read file")?;
 
     // Parse the ELF file
     let elf = Elf::parse(&buffer).map_err(|_| "Failed to parse ELF")?;
@@ -56,7 +56,6 @@ fn get_elf_info<P: AsRef<Path>>(path: P) -> Result<(usize, usize, usize, usize),
     Ok((entry_point, exit_sym, cnt1_sym, cnt2_sym))
 }
 
-
 #[test]
 fn test_load_elf_file() {
     // common::setup_tracing();
@@ -69,7 +68,7 @@ fn test_load_elf_file() {
     let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let elf_file_path = project_root.join(elf_file);
     println!("ELF file path: {:?}", elf_file_path);
-  
+
     let loader = Loader::load_elf_file(elf_file_path.as_path(), sim.get_bus_mut())
         .unwrap()
         .unwrap();
@@ -95,7 +94,7 @@ fn test_load_elf_file() {
             assert_eq!(bus.read_word(cnt1), Ok(0x00000000));
             assert_eq!(bus.read_word(cnt2), Ok(0x10));
         }
-        Err(e) => { 
+        Err(e) => {
             println!("Error: {}", e);
             assert!(false, "Failed to get ELF info");
         }

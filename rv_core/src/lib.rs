@@ -31,7 +31,6 @@ compile_error!("Cannot define multiple riscv_xlen");
 #[cfg(all(feature = "riscv_xlen_64", feature = "riscv_xlen_128"))]
 compile_error!("Cannot define multiple riscv_xlen");
 
-
 #[cfg(feature = "riscv_xlen_32")]
 pub type ProgramCounter = u32;
 

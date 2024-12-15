@@ -6,8 +6,9 @@
 // rv_core/src/core.rs
 
 use std::collections::HashMap;
+use std::{fs::File, io::Write};
 
-use tracing::info;
+use tracing::{error, info};
 
 use crate::decode::ExecutionReturnData;
 use crate::inst_csr_reg::*;
@@ -300,10 +301,24 @@ impl Core {
         &mut self,
         trap: &Trap,
         new_pc: ProgramCounter,
+        log_file: &mut Option<File>,
     ) -> Result<Option<ExecutionReturnData>, RvCoreError> {
         self.set_mstatus_before_handle_trap()?;
         let current_pc = self.get_pc();
-        trap.handle_trap(&mut self.csr, current_pc, new_pc)
+        let tmp = trap.handle_trap(&mut self.csr, current_pc, new_pc);
+
+        if let Some(file) = log_file.as_mut() {
+            file.write_fmt(format_args!(
+                "[trap] mcause: {:#010x}, mepc: {:#010x}, mtval: {:#010x}\n",
+                self.read_csr(CSR_MCAUSE)?,
+                self.read_csr(CSR_MEPC)?,
+                self.read_csr(CSR_MTVAL)?,
+            ))
+            .unwrap_or_else(|e| {
+                error!("Failed to write log: {}", e);
+            });
+        }
+        tmp
     }
 
     pub(crate) fn get_csr_mut(&mut self) -> &mut Csr {
