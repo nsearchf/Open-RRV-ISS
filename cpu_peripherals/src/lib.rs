@@ -6,7 +6,6 @@
 // cpu_peripherals/src/lib.rs
 
 pub mod bus;
-pub mod clint;
 pub mod mem;
 pub mod uart;
 
@@ -57,19 +56,38 @@ pub trait Device {
     fn get_type(&self) -> DeviceType;
     fn set_base_addr(&mut self, base_addr: DeviceAddress);
 
-    fn read_byte(&self, address: DeviceAddress) -> Result<u8, CpuPeripheralsError>;
-    fn write_byte(&mut self, address: DeviceAddress, value: u8) -> Result<(), CpuPeripheralsError>;
+    fn read_byte(&self, address: DeviceAddress) -> Result<u8, CpuPeripheralsError> {
+        Err(CpuPeripheralsError::DeviceReadFailed(address as u64))
+    }
+    fn write_byte(
+        &mut self,
+        address: DeviceAddress,
+        _value: u8,
+    ) -> Result<(), CpuPeripheralsError> {
+        Err(CpuPeripheralsError::DeviceWriteFailed(address as u64))
+    }
 
-    fn read_halfword(&self, address: DeviceAddress) -> Result<u16, CpuPeripheralsError>;
+    fn read_halfword(&self, address: DeviceAddress) -> Result<u16, CpuPeripheralsError> {
+        Err(CpuPeripheralsError::DeviceReadFailed(address as u64))
+    }
     fn write_halfword(
         &mut self,
         address: DeviceAddress,
-        value: u16,
-    ) -> Result<(), CpuPeripheralsError>;
+        _value: u16,
+    ) -> Result<(), CpuPeripheralsError> {
+        Err(CpuPeripheralsError::DeviceWriteFailed(address as u64))
+    }
 
-    fn read_word(&self, address: DeviceAddress) -> Result<u32, CpuPeripheralsError>;
-    fn write_word(&mut self, address: DeviceAddress, value: u32)
-        -> Result<(), CpuPeripheralsError>;
+    fn read_word(&self, address: DeviceAddress) -> Result<u32, CpuPeripheralsError> {
+        Err(CpuPeripheralsError::DeviceReadFailed(address as u64))
+    }
+    fn write_word(
+        &mut self,
+        address: DeviceAddress,
+        _value: u32,
+    ) -> Result<(), CpuPeripheralsError> {
+        Err(CpuPeripheralsError::DeviceWriteFailed(address as u64))
+    }
 
     fn read(&self, address: DeviceAddress, _size: usize) -> Result<Vec<u8>, CpuPeripheralsError> {
         Err(CpuPeripheralsError::DeviceReadFailed(address as u64))
@@ -79,16 +97,14 @@ pub trait Device {
     }
 }
 
+pub trait ClintDevice: Device {
+    fn tick(&mut self, mip: &mut u32);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{clint::Clint, mem::Mem, uart::Uart};
-
-    #[test]
-    fn test_clint_device() {
-        let clint = Clint::new();
-        assert_eq!(clint.get_type(), DeviceType::Clint);
-    }
+    use crate::{mem::Mem, uart::Uart};
 
     #[test]
     fn test_mem_device() {

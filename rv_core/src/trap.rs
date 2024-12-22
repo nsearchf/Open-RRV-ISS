@@ -84,6 +84,15 @@ pub enum Trap {
     Interrupt(Interrupt),
 }
 
+impl std::fmt::Display for Trap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Trap::Exception(e) => write!(f, "{}", e),
+            Trap::Interrupt(i) => write!(f, "{}", i),
+        }
+    }
+}
+
 // mtval
 // mstatus
 // mepc, mcause

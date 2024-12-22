@@ -17,7 +17,7 @@ use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::FmtSubscriber;
 
 use cpu_peripherals::bus::{Bus, DevicePointer};
-use cpu_peripherals::{clint::Clint, mem::Mem, uart::Uart, DeviceAddress, DeviceSize};
+use cpu_peripherals::{mem::Mem, uart::Uart, DeviceAddress, DeviceSize};
 use sim_lib::loader::{self, Loader};
 use sim_lib::simulator::Simulator;
 use sim_lib::ProgramCounter;
@@ -87,9 +87,6 @@ const FLASH_SIZE: DeviceSize = 2 * 1024 * 1024;
 const RAM_BASE_ADDRESS: DeviceAddress = 0x8008_0000;
 const RAM_SIZE: DeviceSize = 512 * 1024;
 
-const CLINT_BASE_ADDRESS: DeviceAddress = 0x200_0000;
-const CLINT_SIZE: DeviceSize = 0x1000;
-
 // UART0 base address
 const UART_BASE_ADDRESS: DeviceAddress = 0x1001_3000;
 const UART_SIZE: DeviceSize = 0x1000;
@@ -135,8 +132,6 @@ fn main() {
     let memory = DevicePointer::new(Mem::new(RAM_SIZE));
     let _ = bus.add_device(RAM_BASE_ADDRESS, RAM_SIZE, memory);
 
-    let clint = DevicePointer::new(Clint::new());
-    let _ = bus.add_device(CLINT_BASE_ADDRESS, CLINT_SIZE, clint);
     let uart = DevicePointer::new(Uart::new("UART0"));
     let _ = bus.add_device(UART_BASE_ADDRESS, UART_SIZE, uart);
 
@@ -240,7 +235,7 @@ fn dump_signature_file(
         if meta_data.signature_len == 0 {
             return;
         }
-        
+
         let size_of_each_line: usize = signature_granularity;
         let bus = sim.get_bus();
         let signature_data = bus

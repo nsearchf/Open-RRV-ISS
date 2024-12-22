@@ -6,18 +6,27 @@
 // sim_lib/src/simulator.rs
 
 use std::{fs::File, io::Write, path::Path};
-use tracing::{error, info, trace};
+use tracing::{error, info, trace, warn};
 
-use cpu_peripherals::{bus::Bus, DeviceAddress};
+use cpu_peripherals::{
+    bus::{Bus, DevicePointer},
+    DeviceAddress, DeviceSize,
+};
+
 use rv_core::{
+    clint::Clint,
     core::Core,
     decode::{decoder::Decoder, DecodedInstruction, ExecutionReturnData},
     fetch::Fetcher,
+    inst_csr_reg::CSR_MIP,
     GprSigned, MachineInstruction, ProgramCounter, RvCoreError,
 };
 
 use crate::loader::Loader;
 use crate::SimulatorError;
+
+const CLINT_BASE_ADDRESS: DeviceAddress = 0x200_0000;
+const CLINT_SIZE: DeviceSize = 0xc000;
 
 pub struct Simulator {
     core: Core,
@@ -29,8 +38,12 @@ pub struct Simulator {
 }
 
 impl Simulator {
-    pub fn new(bus: Bus) -> Self {
+    pub fn new(mut bus: Bus) -> Self {
         info!("Creating a new simulator");
+
+        let clint = DevicePointer::new(Clint::new());
+        let _ = bus.add_clint_device(CLINT_BASE_ADDRESS, CLINT_SIZE, clint);
+
         Self {
             core: Core::new(),
             decoder: Decoder::new(),
@@ -139,9 +152,29 @@ impl Simulator {
         // step 3. Execute instruction
         let mut ret_data = self.execute(&decoded_instruction, instruction)?;
 
-        self.run_instrctions += 1;
+        self.run_instrctions = self.run_instrctions.wrapping_add(1);
 
-        // step 4. check interrupt TODO: // mie, mip
+        // step 4. check interrupt
+        // step 4.1 invoke clint.tick()
+        let mip_prev = self.core.read_csr(CSR_MIP).expect("read mip failed");
+        let mut mip = mip_prev;
+        let clint = self
+            .bus
+            .find_clint_device_mut(CLINT_BASE_ADDRESS)
+            .expect("find clint failed");
+        clint.tick(&mut mip);
+        if mip != mip_prev {
+            self.core
+                .write_csr(CSR_MIP, mip)
+                .expect("Write to mip failed!");
+
+            if let Some(trap) = self.core.get_interrutp() {
+                if let Err(err) = self.core.set_trap(trap, pc) {
+                    warn!("Set trap.interrupt failed: {:?}", err)
+                }
+            }
+        }
+        // TODO: step 4.2 check external interrupt
 
         // step 5. process trap
         ret_data = if let Some(trap) = self.core.take_trap() {
@@ -219,5 +252,25 @@ impl Simulator {
         let new_pc = self.calc_new_pc(ret_data);
         trace!("New PC: {:#010x}", new_pc);
         self.core.set_pc(new_pc);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cpu_peripherals::DeviceType;
+
+    #[test]
+    fn test_clint_in_sim() {
+        let bus = Bus::new();
+        let sim = Simulator::new(bus);
+
+        assert_eq!(
+            sim.bus
+                .find_clint_device(CLINT_BASE_ADDRESS)
+                .unwrap()
+                .get_type(),
+            DeviceType::Clint
+        );
     }
 }

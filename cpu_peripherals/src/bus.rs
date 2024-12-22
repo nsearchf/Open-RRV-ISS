@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use tracing::info;
 
-use crate::{CpuPeripheralsError, Device, DeviceAddress, DeviceSize};
+use crate::{ClintDevice, CpuPeripheralsError, Device, DeviceAddress, DeviceSize};
 
 // use std::sync::Arc;
 // pub type DevicePointer<T> = Arc<T>;
@@ -17,9 +17,11 @@ use crate::{CpuPeripheralsError, Device, DeviceAddress, DeviceSize};
 
 pub type DevicePointer<T> = Box<T>;
 pub type DeviceHandler = DevicePointer<dyn Device>;
+pub type ClintDeviceHandler = DevicePointer<dyn ClintDevice>;
 
 pub struct Bus {
     devices: HashMap<(DeviceAddress, DeviceSize), DeviceHandler>,
+    clint_device: HashMap<(DeviceAddress, DeviceSize), ClintDeviceHandler>,
 }
 
 impl Bus {
@@ -27,6 +29,7 @@ impl Bus {
         info!("Creating new bus");
         Self {
             devices: HashMap::new(),
+            clint_device: HashMap::new(),
         }
     }
 
@@ -41,11 +44,35 @@ impl Bus {
         Ok(())
     }
 
+    pub fn add_clint_device(
+        &mut self,
+        base_addr: DeviceAddress,
+        size: DeviceSize,
+        mut device: ClintDeviceHandler,
+    ) -> Result<(), CpuPeripheralsError> {
+        device.set_base_addr(base_addr);
+        self.clint_device
+            .insert((base_addr, base_addr + size), device);
+        Ok(())
+    }
+
     pub fn find_device(
         &self,
         address: DeviceAddress,
     ) -> Result<&DeviceHandler, CpuPeripheralsError> {
         for (&(start, end), device) in &self.devices {
+            if address >= start && address < end {
+                return Ok(device);
+            }
+        }
+        Err(CpuPeripheralsError::InvalidDeviceAddress(address))
+    }
+
+    pub fn find_clint_device(
+        &self,
+        address: DeviceAddress,
+    ) -> Result<&ClintDeviceHandler, CpuPeripheralsError> {
+        for (&(start, end), device) in &self.clint_device {
             if address >= start && address < end {
                 return Ok(device);
             }
@@ -65,9 +92,26 @@ impl Bus {
         Err(CpuPeripheralsError::InvalidDeviceAddress(address))
     }
 
+    pub fn find_clint_device_mut(
+        &mut self,
+        address: DeviceAddress,
+    ) -> Result<&mut ClintDeviceHandler, CpuPeripheralsError> {
+        for (&(start, end), device) in &mut self.clint_device {
+            if address >= start && address < end {
+                return Ok(device);
+            }
+        }
+        Err(CpuPeripheralsError::InvalidDeviceAddress(address))
+    }
+
     pub fn read_byte(&self, address: DeviceAddress) -> Result<u8, CpuPeripheralsError> {
-        let device = self.find_device(address)?;
-        let val = device.read_byte(address)?;
+        let val = if let Ok(dev) = self.find_device(address) {
+            dev.read_byte(address)?
+        } else {
+            let dev = self.find_clint_device(address)?;
+            dev.read_byte(address)?
+        };
+
         Ok(val)
     }
 
@@ -76,14 +120,23 @@ impl Bus {
         address: DeviceAddress,
         value: u8,
     ) -> Result<(), CpuPeripheralsError> {
-        let device = self.find_device_mut(address)?;
-        device.write_byte(address, value)?;
+        if let Ok(dev) = self.find_device_mut(address) {
+            dev.write_byte(address, value)?
+        } else {
+            let dev = self.find_clint_device_mut(address)?;
+            dev.write_byte(address, value)?
+        }
+
         Ok(())
     }
 
     pub fn read_halfword(&self, address: DeviceAddress) -> Result<u16, CpuPeripheralsError> {
-        let device = self.find_device(address)?;
-        let val = device.read_halfword(address)?;
+        let val = if let Ok(dev) = self.find_device(address) {
+            dev.read_halfword(address)?
+        } else {
+            let dev = self.find_clint_device(address)?;
+            dev.read_halfword(address)?
+        };
         Ok(val)
     }
     pub fn write_halfword(
@@ -91,14 +144,22 @@ impl Bus {
         address: DeviceAddress,
         value: u16,
     ) -> Result<(), CpuPeripheralsError> {
-        let device = self.find_device_mut(address)?;
-        device.write_halfword(address, value)?;
+        if let Ok(dev) = self.find_device_mut(address) {
+            dev.write_halfword(address, value)?
+        } else {
+            let dev = self.find_clint_device_mut(address)?;
+            dev.write_halfword(address, value)?
+        }
         Ok(())
     }
 
     pub fn read_word(&self, address: DeviceAddress) -> Result<u32, CpuPeripheralsError> {
-        let device = self.find_device(address)?;
-        let val = device.read_word(address)?;
+        let val = if let Ok(dev) = self.find_device(address) {
+            dev.read_word(address)?
+        } else {
+            let dev = self.find_clint_device(address)?;
+            dev.read_word(address)?
+        };
         Ok(val)
     }
     pub fn write_word(
@@ -106,8 +167,12 @@ impl Bus {
         address: DeviceAddress,
         value: u32,
     ) -> Result<(), CpuPeripheralsError> {
-        let device = self.find_device_mut(address)?;
-        device.write_word(address, value)?;
+        if let Ok(dev) = self.find_device_mut(address) {
+            dev.write_word(address, value)?
+        } else {
+            let dev = self.find_clint_device_mut(address)?;
+            dev.write_word(address, value)?
+        }
         Ok(())
     }
 
@@ -116,8 +181,12 @@ impl Bus {
         address: DeviceAddress,
         size: usize,
     ) -> Result<Vec<u8>, CpuPeripheralsError> {
-        let device = self.find_device(address)?;
-        let val = device.read(address, size)?;
+        let val = if let Ok(dev) = self.find_device(address) {
+            dev.read(address, size)?
+        } else {
+            let dev = self.find_clint_device(address)?;
+            dev.read(address, size)?
+        };
         Ok(val)
     }
 
@@ -126,8 +195,13 @@ impl Bus {
         address: DeviceAddress,
         data: &[u8],
     ) -> Result<(), CpuPeripheralsError> {
-        let device = self.find_device_mut(address)?;
-        device.write(address, data)?;
+        if let Ok(dev) = self.find_device_mut(address) {
+            dev.write(address, data)?
+        } else {
+            let dev = self.find_clint_device_mut(address)?;
+            dev.write(address, data)?
+        }
+
         Ok(())
     }
 }
@@ -135,23 +209,17 @@ impl Bus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{clint::Clint, mem::Mem, uart::Uart, DeviceType};
+    use crate::{mem::Mem, uart::Uart, DeviceType};
 
     #[test]
     fn test_bus_add_and_find_device() {
         let mut bus = Bus::new();
-        let clint = DevicePointer::new(Clint::new());
         let mem = DevicePointer::new(Mem::new(256));
         let uart = DevicePointer::new(Uart::new("test_uart"));
 
-        let _ = bus.add_device(0x0000_0000, 0x1000, clint);
         let _ = bus.add_device(0x1000_0000, 0x1000, mem);
         let _ = bus.add_device(0x2000_0000, 0x1000, uart);
 
-        assert_eq!(
-            bus.find_device(0x0000_0000).unwrap().get_type(),
-            DeviceType::Clint
-        );
         assert_eq!(
             bus.find_device(0x1000_0000).unwrap().get_type(),
             DeviceType::Mem

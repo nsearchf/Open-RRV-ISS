@@ -459,3 +459,16 @@ pub const CSR_MNSTATUS: u16 = 0x744;
 // pub const CSR_MHPMCOUNTER29H: u16 = 0xb9d;
 // pub const CSR_MHPMCOUNTER30H: u16 = 0xb9e;
 // pub const CSR_MHPMCOUNTER31H: u16 = 0xb9f;
+
+// CSR Register bits definition
+pub const MSTATUS_MIE: u32 = 1 << 3; // Machine Interrupt Enable
+pub const MSTATUS_MPIE: u32 = 1 << 7; // Machine Previous Interrupt Enable
+pub const MSTATUS_MPP: u32 = 0b11 << 11; // Machine Previous Privilege Mode
+
+pub const MIE_MSIE: u32 = 1 << 3; // Machine Software Interrupt Enable
+pub const MIE_MTIE: u32 = 1 << 7; // Machine Timer Interrupt Enable
+pub const MIE_MEIE: u32 = 1 << 11; // Machine External Interrupt Enable
+
+pub const MIP_MSIP: u32 = 1 << 3; // Machine Software Interrupt Pending
+pub const MIP_MTIP: u32 = 1 << 7; // Machine Timer Interrupt Pending
+pub const MIP_MEIP: u32 = 1 << 11; // Machine External Interrupt Pending

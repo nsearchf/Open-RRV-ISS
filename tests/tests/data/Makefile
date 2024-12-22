@@ -39,10 +39,10 @@ endif
 SOURCES := $(wildcard *.s)
 TARGETS := $(patsubst %.s, %, $(SOURCES))
 
-.PHONY: all clean hello hok empty_main md5 exit_code
+.PHONY: all clean hello hok empty_main md5 exit_code test_timer
 
 # Define the 'all' target which depends on all the generated targets.
-all: $(TARGETS) empty_main md5 exit_code
+all: $(TARGETS) empty_main md5 exit_code test_timer
 
 # Use automatic variables $@ for the target file and $^ for all dependencies.
 # The $@ variable represents the target file name, and $^ represents all dependency files.
@@ -56,6 +56,7 @@ clean:
 	rm -f *.elf *.bin *.o *.asm *.log
 	cd exit_code/; rm -f *.elf *.bin *.o *.asm *.log
 	cd md5/; rm -f *.elf *.bin *.o *.asm *.log
+	cd timer/; rm -f *.elf *.bin *.o *.asm *.log
 
 empty_main:
 	$(CC) $(CFLAGS_COMMON) $(CFLAGS_FOR_RV) empty_main.c -o empty_main.elf
@@ -74,6 +75,15 @@ ifneq ($(ITEST),1)
 	
 	gcc $(CFLAGS_COMMON) -DX86_PLATFORM \
 		common/uart_printf.c md5/md5.c md5/main.c -o md5/md5_x86.elf
+endif
+
+test_timer:
+	$(CC)  $(CFLAGS_COMMON) $(CFLAGS_FOR_RV) \
+		-nostartfiles -T common/linker_script.ld \
+		timer/test_timer.s -o timer/test_timer.elf
+ifneq ($(ITEST),1)		
+	$(OBJDUMP) -DSlt timer/test_timer.elf > timer/test_timer.asm
+	$(OBJDUMP) -D timer/test_timer.elf > timer/test_timer_bare.asm
 endif
 
 exit_code:

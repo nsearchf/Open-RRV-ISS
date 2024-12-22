@@ -5,6 +5,7 @@
 
 // rv_core/src/lib.rs
 
+pub mod clint;
 pub mod core;
 mod csr;
 pub mod decode;
@@ -92,4 +93,7 @@ pub enum RvCoreError {
 
     #[error("CpuPeripheralsError: {0}")]
     CpuPeripheralsError(#[from] cpu_peripherals::CpuPeripheralsError),
+
+    #[error("TrapAlreadySet: old trap:{0}, new trap:{1}")]
+    TrapAlreadySet(String, String),
 }

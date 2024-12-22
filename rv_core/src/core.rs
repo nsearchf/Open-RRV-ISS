@@ -12,7 +12,7 @@ use tracing::{error, info};
 
 use crate::decode::ExecutionReturnData;
 use crate::inst_csr_reg::*;
-use crate::trap::{Exception, Trap};
+use crate::trap::{Exception, Interrupt, Trap};
 use crate::{
     csr::{self, Csr},
     GprUnsigned, ProgramCounter, RegisterIndex, RvCoreError,
@@ -278,10 +278,25 @@ impl Core {
         self.csr.read(addr)
     }
 
-    pub(crate) fn set_trap(&mut self, trap: Trap, tval: u32) -> Result<(), RvCoreError> {
-        self.csr.write(CSR_MTVAL, tval)?;
-        self.trap = Some(trap);
-        Ok(())
+    pub fn write_csr(
+        &mut self,
+        address: csr::CsrAddrType,
+        value: u32,
+    ) -> Result<(), csr::CsrError> {
+        self.csr.write(address, value)
+    }
+
+    pub fn set_trap(&mut self, trap: Trap, tval: u32) -> Result<(), RvCoreError> {
+        if self.trap == None {
+            self.csr.write(CSR_MTVAL, tval)?;
+            self.trap = Some(trap);
+            Ok(())
+        } else {
+            Err(RvCoreError::TrapAlreadySet(
+                self.trap.as_ref().unwrap().to_string(),
+                trap.to_string(),
+            ))
+        }
     }
 
     pub fn is_ecall(trap: &Trap) -> bool {
@@ -295,6 +310,23 @@ impl Core {
 
     pub fn take_trap(&mut self) -> Option<Trap> {
         self.trap.take()
+    }
+
+    pub fn get_interrutp(&mut self) -> Option<Trap> {
+        let mstatus = self.read_csr(CSR_MSTATUS).expect("read mstatus failed");
+        if mstatus & MSTATUS_MIE == 0 {
+            return None;
+        }
+
+        let mie = self.read_csr(CSR_MIE).expect("read mie failed");
+        let mip = self.read_csr(CSR_MIP).expect("read mip failed");
+        if (mip & MIP_MSIP != 0) && (mie & MIE_MSIE != 0) {
+            Some(Trap::Interrupt(Interrupt::MachineSoftwareInterrupt))
+        } else if (mip & MIP_MTIP != 0) && (mie & MIE_MTIE != 0) {
+            Some(Trap::Interrupt(Interrupt::MachineTimerInterrupt))
+        } else {
+            None
+        }
     }
 
     pub fn handle_trap(
