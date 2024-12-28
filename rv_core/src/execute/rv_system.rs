@@ -27,23 +27,30 @@ pub(crate) fn execute_mret(
     disasm: bool,
 ) -> Result<Option<ExecutionReturnData>, RvCoreError> {
     trace!("Executing MRET instruction");
-    let csr = core.get_csr_mut();
+    let (epc, mpp, new_status) = {
+        let csr = core.get_csr();
 
-    let epc = csr.read(CSR_MEPC)?;
-    let status = csr.read(CSR_MSTATUS)?;
+        let epc = csr.read(CSR_MEPC)?;
+        let status = csr.read(CSR_MSTATUS)?;
 
-    let mpie = (status & csr::MSTATUS_MPIE) >> 7; // (status >> 7) & 1;
-    let mpp = (status & csr::MSTATUS_MPP) >> 11; //(status >> 11) & 0x3;
+        let mpie = (status & csr::MSTATUS_MPIE) >> 7; // (status >> 7) & 1;
+        let mpp = (status & csr::MSTATUS_MPP) >> 11; //(status >> 11) & 0x3;
 
-    // MPRV (Modify PRiVilege) bit
-    let mprv = match core::get_privilege_mode((mpp >> 11) as u8) {
-        core::PrivilegeMode::Machine => (status & csr::MSTATUS_MPRV) >> 17,
-        _ => 0,
+        // MPRV (Modify PRiVilege) bit
+        let mprv = match core::get_privilege_mode((mpp >> 11) as u8) {
+            core::PrivilegeMode::Machine => (status & csr::MSTATUS_MPRV) >> 17,
+            _ => 0,
+        };
+        // Override MIE[3] with MPIE[7], set MPIE[7] to 1, set MPP[12:11] to 0
+        // and override MPRV[17]
+        let new_status = (status & !0x21888) | (mprv << 17) | (mpie << 3) | (1 << 7);
+        (epc, mpp, new_status)
     };
-    // Override MIE[3] with MPIE[7], set MPIE[7] to 1, set MPP[12:11] to 0
-    // and override MPRV[17]
-    let new_status = (status & !0x21888) | (mprv << 17) | (mpie << 3) | (1 << 7);
-    csr.write(CSR_MSTATUS, new_status)?;
+
+    {
+        let mut csr = core.get_csr_mut();
+        csr.write(CSR_MSTATUS, new_status)?;
+    }
 
     let privilege_mode = match mpp {
         0 => core::PrivilegeMode::User,

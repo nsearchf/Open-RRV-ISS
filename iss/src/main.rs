@@ -74,6 +74,10 @@ struct Args {
     /// Size of each line in signature.
     #[arg(long, default_value_t = 16)]
     rv_arch_test_signature_granularity: u32,
+
+    /// Number of instructions to run.
+    #[arg(long)]
+    steps: Option<usize>,
 }
 
 fn parse_hex_address(s: &str) -> Result<DeviceAddress, std::num::ParseIntError> {
@@ -137,6 +141,7 @@ fn main() {
 
     // step 3. create a simulator
     let mut sim = Simulator::new(bus);
+    sim.prepare_core_env();
     if let Some(instr_file) = args.instr_file {
         sim.prepare_log_file(&instr_file);
     }
@@ -147,7 +152,7 @@ fn main() {
     // step 5. run the simulator
     let start = std::time::Instant::now();
     // None means run until exit, no steps limited
-    let r = sim.run(None);
+    let r = sim.run(args.steps);
     match r {
         Ok(_) => {}
         Err(e) => {

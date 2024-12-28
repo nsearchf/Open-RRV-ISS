@@ -5,7 +5,9 @@
 
 // rv_core/src/core.rs
 
+use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::{fs::File, io::Write};
 
 use tracing::{error, info};
@@ -146,7 +148,7 @@ impl From<RegName> for usize {
 pub struct Core {
     pc: ProgramCounter,
     registers: [GprUnsigned; REGISTER_NUM],
-    csr: Csr,
+    csr: Rc<RefCell<Csr>>,
     reg_name_map: HashMap<String, RegName>,
     trap: Option<Trap>,
     privilege_mode: PrivilegeMode,
@@ -194,7 +196,7 @@ impl Core {
         Self {
             pc: 0,
             registers: [0; REGISTER_NUM],
-            csr: Csr::new(),
+            csr: Rc::new(RefCell::new(Csr::new())),
             reg_name_map: Self::new_reg_name_map(),
             trap: None,
             privilege_mode: PrivilegeMode::Machine,
@@ -204,7 +206,7 @@ impl Core {
     pub fn reset(&mut self) {
         self.pc = 0;
         self.registers = [0; REGISTER_NUM];
-        self.csr.reset();
+        self.csr.borrow_mut().reset();
         self.reg_name_map = Self::new_reg_name_map();
         self.trap = None;
         self.privilege_mode = PrivilegeMode::Machine;
@@ -275,7 +277,7 @@ impl Core {
     }
 
     pub fn read_csr(&self, addr: csr::CsrAddrType) -> Result<u32, csr::CsrError> {
-        self.csr.read(addr)
+        self.csr.borrow().read(addr)
     }
 
     pub fn write_csr(
@@ -283,12 +285,12 @@ impl Core {
         address: csr::CsrAddrType,
         value: u32,
     ) -> Result<(), csr::CsrError> {
-        self.csr.write(address, value)
+        self.csr.borrow_mut().write(address, value)
     }
 
     pub fn set_trap(&mut self, trap: Trap, tval: u32) -> Result<(), RvCoreError> {
         if self.trap == None {
-            self.csr.write(CSR_MTVAL, tval)?;
+            self.csr.borrow_mut().write(CSR_MTVAL, tval)?;
             self.trap = Some(trap);
             Ok(())
         } else {
@@ -337,7 +339,7 @@ impl Core {
     ) -> Result<Option<ExecutionReturnData>, RvCoreError> {
         self.set_mstatus_before_handle_trap()?;
         let current_pc = self.get_pc();
-        let tmp = trap.handle_trap(&mut self.csr, current_pc, new_pc);
+        let tmp = trap.handle_trap(&mut self.csr.borrow_mut(), current_pc, new_pc);
 
         if let Some(file) = log_file.as_mut() {
             file.write_fmt(format_args!(
@@ -353,8 +355,16 @@ impl Core {
         tmp
     }
 
-    pub(crate) fn get_csr_mut(&mut self) -> &mut Csr {
-        &mut self.csr
+    pub(crate) fn get_csr(&self) -> Ref<'_, Csr> {
+        self.csr.borrow()
+    }
+
+    pub(crate) fn get_csr_mut(&mut self) -> RefMut<'_, Csr> {
+        self.csr.borrow_mut()
+    }
+
+    pub fn clone_csr(&self) -> Rc<RefCell<Csr>> {
+        self.csr.clone()
     }
 
     pub(crate) fn set_privilege_mode(&mut self, mode: PrivilegeMode) {
@@ -366,7 +376,7 @@ impl Core {
     }
 
     fn set_mstatus_before_handle_trap(&mut self) -> Result<(), RvCoreError> {
-        let old_val = self.csr.read(CSR_MSTATUS)?;
+        let old_val = self.csr.borrow().read(CSR_MSTATUS)?;
         let current_mode = self.get_privilege_mode();
         // Save the privilege mode before the trap into mstatus.MPP
         let mut new_value =
@@ -381,7 +391,7 @@ impl Core {
         // Set mstatus.MIE to zero to disable interrupts
         new_value &= !(csr::MSTATUS_MIE);
 
-        self.csr.write(CSR_MSTATUS, new_value)?; // cause
+        self.csr.borrow_mut().write(CSR_MSTATUS, new_value)?; // cause
 
         Ok(())
     }

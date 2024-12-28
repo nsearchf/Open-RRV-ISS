@@ -39,6 +39,7 @@ fn creat_sim_for_test(instr: u32) -> Simulator {
 
     // step 3. set the reset vector
     sim.set_reset_vector(MEMORY_BASE_ADDRESS.try_into().unwrap());
+    sim.prepare_core_env();
 
     sim
 }

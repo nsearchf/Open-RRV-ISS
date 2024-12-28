@@ -60,7 +60,7 @@ impl CsrRegister {
 }
 
 /// Represents a RISC-V Control and Status Registers (CSR)
-pub(crate) struct Csr {
+pub struct Csr {
     registers: HashMap<CsrAddrType, CsrRegister>,
 }
 

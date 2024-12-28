@@ -29,7 +29,9 @@ pub(crate) fn creat_sim_for_test() -> Simulator {
     // step 3. create a simulator
     // let mut sim = Simulator::new(bus);
 
-    Simulator::new(bus)
+    let mut sim = Simulator::new(bus);
+    sim.prepare_core_env();
+    sim
 }
 
 pub(crate) const FLASH_BASE_ADDRESS: DeviceAddress = 0x8000_0000;
@@ -50,7 +52,9 @@ pub(crate) fn creat_mcu_sim_for_test() -> Simulator {
     let _ = bus.add_device(RAM_BASE_ADDRESS, RAM_SIZE, memory);
 
     // step 3. create a simulator
-    Simulator::new(bus)
+    let mut sim = Simulator::new(bus);
+    sim.prepare_core_env();
+    sim
 }
 
 #[allow(dead_code)]

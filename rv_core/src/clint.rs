@@ -9,9 +9,13 @@
 // Core-Local Interruptor (CLINT)
 //
 
+use std::{cell::RefCell, rc::Rc};
 use tracing::info;
 
-use crate::inst_csr_reg::{MIP_MSIP, MIP_MTIP};
+use crate::{
+    csr::Csr,
+    inst_csr_reg::{CSR_MIP, MIP_MSIP, MIP_MTIP},
+};
 use cpu_peripherals::{ClintDevice, CpuPeripheralsError, Device, DeviceAddress, DeviceType};
 
 const CLINT_MSIP_OFFSET: DeviceAddress = 0x0000;
@@ -27,17 +31,33 @@ pub struct Clint {
     msip: u32,
     mtimecmp: u64,
     mtime: u64,
+
+    csr: Rc<RefCell<Csr>>,
 }
 
 impl Clint {
-    pub fn new() -> Self {
+    pub fn new(csr: Rc<RefCell<Csr>>) -> Self {
         info!("Creating a new Clint device");
         Self {
             base_addr: 0,
             msip: 0,
             mtimecmp: 0,
             mtime: 0,
+            csr,
         }
+    }
+
+    // MTIP is read-only in mip, and is cleared by writing to the memory-mapped machine-mode
+    // timer compare register.
+    fn clear_mtip_bit(&mut self) {
+        let mip = {
+            let csr = self.csr.borrow();
+            let mip = csr.read(CSR_MIP).unwrap();
+            mip
+        };
+        let mut csr = self.csr.borrow_mut();
+        csr.write(CSR_MIP, mip & !MIP_MTIP)
+            .expect("Write to MIP register failed!");
     }
 }
 
@@ -75,6 +95,7 @@ impl Device for Clint {
             }
             CLINT_MTIMECMP_L_OFFSET => {
                 self.mtimecmp = (self.mtimecmp & 0xFFFF_FFFF_0000_0000) | (value as u64);
+                self.clear_mtip_bit();
                 Ok(())
             }
             CLINT_MTIMECMP_H_OFFSET => {
@@ -112,9 +133,19 @@ impl ClintDevice for Clint {
 mod tests {
     use super::*;
 
+    // use std::sync::{Arc, Mutex};
+    //
+    // fn create_csr() -> Arc<Mutex<Csr>> {
+    //     Arc::new(Mutex::new(Csr::new()))
+    // }
+
+    fn create_csr() -> Rc<RefCell<Csr>> {
+        Rc::new(RefCell::new(Csr::new()))
+    }
+
     #[test]
     fn test_clint_new() {
-        let clint = Clint::new();
+        let clint = Clint::new(create_csr());
         assert_eq!(clint.base_addr, 0);
         assert_eq!(clint.msip, 0);
         assert_eq!(clint.mtimecmp, 0);
@@ -128,7 +159,7 @@ mod tests {
     }
     #[test]
     fn test_clint_read_write() {
-        let mut clint = Clint::new();
+        let mut clint = Clint::new(create_csr());
         let base_addr: DeviceAddress = 0x200_0000;
         clint.set_base_addr(base_addr);
 
@@ -147,7 +178,7 @@ mod tests {
 
     #[test]
     fn test_clint_tick_msip() {
-        let mut clint = Clint::new();
+        let mut clint = Clint::new(create_csr());
         clint.mtimecmp = 2;
         clint.msip = 1;
         // let mut core = Core::new();

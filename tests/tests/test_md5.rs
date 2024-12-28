@@ -41,6 +41,7 @@ fn test_load_elf_file() {
 
     // step 3. create a simulator
     let mut sim = Simulator::new(bus);
+    sim.prepare_core_env();
 
     // step 2. load ELF file into memory
     let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

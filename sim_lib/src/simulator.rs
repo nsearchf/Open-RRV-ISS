@@ -38,11 +38,8 @@ pub struct Simulator {
 }
 
 impl Simulator {
-    pub fn new(mut bus: Bus) -> Self {
+    pub fn new(bus: Bus) -> Self {
         info!("Creating a new simulator");
-
-        let clint = DevicePointer::new(Clint::new());
-        let _ = bus.add_clint_device(CLINT_BASE_ADDRESS, CLINT_SIZE, clint);
 
         Self {
             core: Core::new(),
@@ -51,6 +48,17 @@ impl Simulator {
             exit_code: 0,
             log_file: None,
             run_instrctions: 0,
+        }
+    }
+
+    pub fn prepare_core_env(&mut self) {
+        if self.bus.find_clint_device(CLINT_BASE_ADDRESS).is_ok() {
+            warn!("CLINT device already exists, skip creating a new one");
+        } else {
+            let clint = DevicePointer::new(Clint::new(self.core.clone_csr()));
+            let _ = self
+                .bus
+                .add_clint_device(CLINT_BASE_ADDRESS, CLINT_SIZE, clint);
         }
     }
 
@@ -263,7 +271,8 @@ mod tests {
     #[test]
     fn test_clint_in_sim() {
         let bus = Bus::new();
-        let sim = Simulator::new(bus);
+        let mut sim = Simulator::new(bus);
+        sim.prepare_core_env();
 
         assert_eq!(
             sim.bus

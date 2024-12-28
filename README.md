@@ -16,6 +16,7 @@ A functionally accurate RISC-V instruction set simulator developed in Rust.
 - `make use-riscv-tests` 在模拟器上运行 [riscv-tests](https://github.com/riscv-software-src/riscv-tests) 的 `rv32ui-p-*` 的程序.
 - `make use-md5-test` 在模拟器上运行计算 md5 校验和的程序.
 - `make use-riscv-arch-tests` 在模拟器上运行 [riscv-arch-test](https://github.com/riscv-non-isa/riscv-arch-test) 中的测试程序.
+- `make run-freertos-tests` 在模拟器上运行 FreeRTOS。
 - `make` or `make all-tests` 执行所有测试.
 
 ## 当前状态
@@ -24,6 +25,7 @@ A functionally accurate RISC-V instruction set simulator developed in Rust.
 - riscv tests 中 `rv32ui-p-*` 的程序运行结果都 pass。
 - md5 测试程序成功运行。
 - riscv arch test 中的所有测试都 pass（ISA: RV32IZicsr）。
+- 可以成功运行 FreeRTOS。
 
 ## 已知问题
 
